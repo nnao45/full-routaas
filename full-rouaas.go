@@ -145,9 +145,10 @@ func findMrt() (mrtFile string, err error) {
 	for _, file := range files {
 		if strings.Contains(file.Name(), "rib") {
 			mrtFile = "./" + file.Name()
-			break
+			return
 		}
 	}
+	fmt.Errorf("failed to read mib file.", err)
 	return
 }
 
