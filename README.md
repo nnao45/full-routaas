@@ -1,6 +1,22 @@
 # full-routaas
 🐣Ultra Small🐣 BGP IPv4 Unicast Full Route "as a Service" for Docker container.
 
+## Ultra minimal images.
+
+full route images's size is "168MB"
+```bash
+root@net-flu:full-routaas # docker images
+REPOSITORY                               TAG                 IMAGE ID            CREATED             SIZE
+nnao45/full-routaas                      latest              00028f3dd5c9        10 minutes ago      168MB
+<none>                                   <none>              d055571d5c0f        10 minutes ago      793MB
+```
+
+MIB file size's size is "80MB"...so, full-routaas size is "88MB" !!
+```bash
+# ls -lh rib.20180418.0000
+-rw-r--r-- 1 root root 85M  4月 18 09:00 rib.20180418.0000
+```
+
 ## Installed and Started
 
 Nework Diagram.
