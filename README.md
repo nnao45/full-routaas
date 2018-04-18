@@ -2,6 +2,8 @@
 🐣Ultra Small🐣 BGP IPv4 Unicast Full Route "as a Service" for Docker container.
 
 ## Installed and Started
+
+Nework Diagram.
 ```bash
 +---------------------------------+                            +---------------------------------+
 |  Bob                            |                            | Alice                           |
@@ -14,7 +16,7 @@
 +---------------------------------+                            +---------------------------------+
 ```
 
-
+Bob Router(full-routaas)
 ```bash
 Bob# ./launch.sh
 <install process>
@@ -26,6 +28,7 @@ INFO[0000] MRT injection file is ./rib.20180418.0000
 INFO[0150] Peer Up                                       Key=172.30.1.176 State=BGP_FSM_OPENCONFIRM Topic=Peer
 ```
 
+Alice Router(gobgpd)
 ```bash
 Alice# gobgpd -f gobgpd.conf
 {"level":"info","msg":"gobgpd started","time":"2018-04-18T17:41:08+09:00"}
