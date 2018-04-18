@@ -26,16 +26,8 @@
 
 
 [[constraint]]
-  name = "github.com/BurntSushi/toml"
-  version = "0.3.0"
-
-[[constraint]]
   name = "github.com/osrg/gobgp"
-  version = "1.27.0"
-
-[[constraint]]
-  name = "github.com/satori/go.uuid"
-  version = "1.2.0"
+  version = "1.30.0"
 
 [[constraint]]
   name = "github.com/sirupsen/logrus"

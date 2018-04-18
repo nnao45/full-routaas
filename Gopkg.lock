@@ -95,8 +95,8 @@
     "table",
     "zebra"
   ]
-  revision = "77136fac6dfd8a70ef5375b321fd05d7736659a7"
-  version = "v1.27"
+  revision = "072935c23f9021009c6992c7188855657201ac70"
+  version = "v1.30"
 
 [[projects]]
   name = "github.com/pelletier/go-toml"
@@ -105,10 +105,10 @@
   version = "v1.1.0"
 
 [[projects]]
+  branch = "master"
   name = "github.com/satori/go.uuid"
   packages = ["."]
-  revision = "f58768cc1a7a7e77a3bd49e98cdd21419399b6a3"
-  version = "v1.2.0"
+  revision = "36e9d2ebbde5e3f13ab2e25625fd453271d6522e"
 
 [[projects]]
   name = "github.com/sirupsen/logrus"
@@ -183,7 +183,7 @@
     "lex/httplex",
     "trace"
   ]
-  revision = "8d16fa6dc9a85c1cd3ed24ad08ff21cf94f10888"
+  revision = "84348c2dc81a524fe94aaea3e3d9f967135338ef"
 
 [[projects]]
   branch = "master"
@@ -266,6 +266,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "8b2922701c46e52010955c63bc61e43f3bb9e091225833534218a755ea4ca47e"
+  inputs-digest = "f22aa2f47170461564f84f820ad6f2c82b41d235fde7714a6cb8be993286d6e1"
   solver-name = "gps-cdcl"
   solver-version = 1

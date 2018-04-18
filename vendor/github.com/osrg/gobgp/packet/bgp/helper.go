@@ -65,29 +65,25 @@ func NewTestBGPUpdateMessage() *BGPMessage {
 		NewTwoOctetAsSpecificExtended(EC_SUBTYPE_ROUTE_TARGET, 10003, 3<<20, isTransitive),
 		NewFourOctetAsSpecificExtended(EC_SUBTYPE_ROUTE_TARGET, 1<<20, 300, isTransitive),
 		NewIPv4AddressSpecificExtended(EC_SUBTYPE_ROUTE_TARGET, "192.2.1.2", 3000, isTransitive),
-		&OpaqueExtended{
-			Value: &DefaultOpaqueExtendedValue{[]byte{255, 1, 2, 3, 4, 5, 6, 7}},
-		},
-		&OpaqueExtended{
-			Value: &ValidationExtended{Value: VALIDATION_STATE_INVALID},
-		},
-		&UnknownExtended{Type: 99, Value: []byte{0, 1, 2, 3, 4, 5, 6, 7}},
+		NewOpaqueExtended(false, []byte{1, 2, 3, 4, 5, 6, 7}),
+		NewValidationExtended(VALIDATION_STATE_INVALID),
+		NewUnknownExtended(99, []byte{0, 1, 2, 3, 4, 5, 6, 7}),
 		NewESILabelExtended(1000, true),
 		NewESImportRouteTarget("11:22:33:44:55:66"),
 		NewMacMobilityExtended(123, false),
 	}
 
 	prefixes1 := []AddrPrefixInterface{
-		NewLabeledVPNIPAddrPrefix(20, "192.0.9.0", *NewMPLSLabelStack(1, 2, 3),
+		NewLabeledVPNIPAddrPrefix(24, "192.0.9.0", *NewMPLSLabelStack(1, 2, 3),
 			NewRouteDistinguisherTwoOctetAS(256, 10000)),
-		NewLabeledVPNIPAddrPrefix(26, "192.10.8.192", *NewMPLSLabelStack(5, 6, 7, 8),
+		NewLabeledVPNIPAddrPrefix(24, "192.10.8.0", *NewMPLSLabelStack(5, 6, 7, 8),
 			NewRouteDistinguisherIPAddressAS("10.0.1.1", 10001)),
 	}
 
-	prefixes2 := []AddrPrefixInterface{NewIPv6AddrPrefix(100,
+	prefixes2 := []AddrPrefixInterface{NewIPv6AddrPrefix(128,
 		"fe80:1234:1234:5667:8967:af12:8912:1023")}
 
-	prefixes3 := []AddrPrefixInterface{NewLabeledVPNIPv6AddrPrefix(100,
+	prefixes3 := []AddrPrefixInterface{NewLabeledVPNIPv6AddrPrefix(128,
 		"fe80:1234:1234:5667:8967:af12:1203:33a1", *NewMPLSLabelStack(5, 6),
 		NewRouteDistinguisherFourOctetAS(5, 6))}
 
@@ -141,8 +137,8 @@ func NewTestBGPUpdateMessage() *BGPMessage {
 			PathAttribute: PathAttribute{
 				Flags: BGP_ATTR_FLAG_TRANSITIVE,
 				Type:  100,
-				Value: []byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9},
 			},
+			Value: []byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9},
 		},
 	}
 	n := []*IPAddrPrefix{NewIPAddrPrefix(24, "13.2.3.1")}
