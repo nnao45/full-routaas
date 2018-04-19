@@ -62,7 +62,7 @@ func main() {
 
 	global := &config.Global{
 		Config: config.GlobalConfig{
-			As:       65000,
+			As:       65555,
 			RouterId: "172.30.1.171",
 		},
 	}
