@@ -89,7 +89,7 @@ func main() {
         go g.Serve()
 
         var tmlconfig tmlConfig
-        _, err := toml.DecodeFile(".//config.tml", &tmlconfig)
+        _, err := toml.DecodeFile("./config.tml", &tmlconfig)
         if err != nil {
                 log.Fatal(err)
         }
