@@ -33,6 +33,7 @@ Nework Diagram.
 ```
 
 Bob Router(full-routaas)
+launch.sh Must use "docker", "bzip2"
 ```bash
 Bob# ./launch.sh
 <install process>
