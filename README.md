@@ -3,15 +3,15 @@
 
 ## Ultra minimal images.
 
-full route images's size is "168MB"
+full route images's size is "102MB"
 ```bash
 # docker images
-REPOSITORY                               TAG                 IMAGE ID            CREATED             SIZE
-nnao45/full-routaas                      latest              00028f3dd5c9        10 minutes ago      168MB
-<none>                                   <none>              d055571d5c0f        10 minutes ago      793MB
+REPOSITORY            TAG                 IMAGE ID            CREATED             SIZE
+nnao45/full-routaas   latest              f62fc829754b        22 minutes ago      102MB
+<none>                <none>              db963eb06590        22 minutes ago      949MB
 ```
 
-MIB file size's size is "85MB"...so, full-routaas container size is "83MB" !!
+MIB file size's size is "85MB"...so, full-routaas container size is "17MB" !!
 ```bash
 # ls -lh rib.20180418.0000
 -rw-r--r-- 1 root root 85M  4月 18 09:00 rib.20180418.0000
