@@ -51,4 +51,4 @@ Neighbor        Spk    AS MsgRcvd MsgSent   TblVer  InQ OutQ  Up/Down  St/PfxRcd
 192.168.0.1       0 65555 1238838      31      112    0    0 00:01:37     696234
 ```
 
-My env, Total route advertisement time is 1 minutes 37sec. 😉so fast!!
+My env, Total route advertisement time is 1 minutes 37sec. 😉 so fast!!
