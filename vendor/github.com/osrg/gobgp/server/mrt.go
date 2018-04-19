@@ -36,10 +36,12 @@ const (
 type mrtWriter struct {
 	dead             chan struct{}
 	s                *BgpServer
-	c                *config.MrtConfig
+	filename         string
+	tablename        string
 	file             *os.File
 	rotationInterval uint64
 	dumpInterval     uint64
+	dumpType         config.MrtType
 }
 
 func (m *mrtWriter) Stop() {
@@ -48,12 +50,12 @@ func (m *mrtWriter) Stop() {
 
 func (m *mrtWriter) loop() error {
 	ops := []WatchOption{}
-	switch m.c.DumpType {
+	switch m.dumpType {
 	case config.MRT_TYPE_UPDATES:
 		ops = append(ops, WatchUpdate(false))
 	case config.MRT_TYPE_TABLE:
-		if len(m.c.TableName) > 0 {
-			ops = append(ops, WatchTableName(m.c.TableName))
+		if len(m.tablename) > 0 {
+			ops = append(ops, WatchTableName(m.tablename))
 		}
 	}
 	w := m.s.Watch(ops...)
@@ -86,112 +88,71 @@ func (m *mrtWriter) loop() error {
 	for {
 		serialize := func(ev WatchEvent) []*mrt.MRTMessage {
 			msg := make([]*mrt.MRTMessage, 0, 1)
-			switch e := ev.(type) {
+			switch m := ev.(type) {
 			case *WatchEventUpdate:
-				mp := mrt.NewBGP4MPMessage(e.PeerAS, e.LocalAS, 0, e.PeerAddress.String(), e.LocalAddress.String(), e.FourBytesAs, nil)
-				mp.BGPMessagePayload = e.Payload
-				isAddPath := e.Neighbor.IsAddPathReceiveEnabled(e.PathList[0].GetRouteFamily())
-				subtype := mrt.MESSAGE
-				switch {
-				case isAddPath && e.FourBytesAs:
-					subtype = mrt.MESSAGE_AS4_ADDPATH
-				case isAddPath:
-					subtype = mrt.MESSAGE_ADDPATH
-				case e.FourBytesAs:
-					subtype = mrt.MESSAGE_AS4
+				subtype := mrt.MESSAGE_AS4
+				mp := mrt.NewBGP4MPMessage(m.PeerAS, m.LocalAS, 0, m.PeerAddress.String(), m.LocalAddress.String(), m.FourBytesAs, nil)
+				mp.BGPMessagePayload = m.Payload
+				if m.FourBytesAs == false {
+					subtype = mrt.MESSAGE
 				}
-				if bm, err := mrt.NewMRTMessage(uint32(e.Timestamp.Unix()), mrt.BGP4MP, subtype, mp); err != nil {
+				if bm, err := mrt.NewMRTMessage(uint32(m.Timestamp.Unix()), mrt.BGP4MP, subtype, mp); err != nil {
 					log.WithFields(log.Fields{
 						"Topic": "mrt",
-						"Data":  e,
+						"Data":  m,
 						"Error": err,
-					}).Warnf("Failed to create MRT BGP4MP message (subtype %d)", subtype)
+					}).Warn("Failed to create MRT message in serialize()")
 				} else {
 					msg = append(msg, bm)
 				}
 			case *WatchEventTable:
 				t := uint32(time.Now().Unix())
-				peers := make([]*mrt.Peer, 0, len(e.Neighbor))
-				neighborMap := make(map[string]*config.Neighbor)
-				for _, pconf := range e.Neighbor {
+				peers := make([]*mrt.Peer, 0, len(m.Neighbor))
+				for _, pconf := range m.Neighbor {
 					peers = append(peers, mrt.NewPeer(pconf.State.RemoteRouterId, pconf.State.NeighborAddress, pconf.Config.PeerAs, true))
-					neighborMap[pconf.State.NeighborAddress] = pconf
 				}
-				if bm, err := mrt.NewMRTMessage(t, mrt.TABLE_DUMPv2, mrt.PEER_INDEX_TABLE, mrt.NewPeerIndexTable(e.RouterId, "", peers)); err != nil {
-					log.WithFields(log.Fields{
-						"Topic": "mrt",
-						"Data":  e,
-						"Error": err,
-					}).Warnf("Failed to create MRT TABLE_DUMPv2 message (subtype %d)", mrt.PEER_INDEX_TABLE)
+				if bm, err := mrt.NewMRTMessage(t, mrt.TABLE_DUMPv2, mrt.PEER_INDEX_TABLE, mrt.NewPeerIndexTable(m.RouterId, "", peers)); err != nil {
 					break
 				} else {
 					msg = append(msg, bm)
 				}
 
 				idx := func(p *table.Path) uint16 {
-					for i, pconf := range e.Neighbor {
+					for i, pconf := range m.Neighbor {
 						if p.GetSource().Address.String() == pconf.State.NeighborAddress {
 							return uint16(i)
 						}
 					}
-					return uint16(len(e.Neighbor))
+					return uint16(len(m.Neighbor))
 				}
 
-				subtype := func(p *table.Path, isAddPath bool) mrt.MRTSubTypeTableDumpv2 {
-					t := mrt.RIB_GENERIC
+				subtype := func(p *table.Path) mrt.MRTSubTypeTableDumpv2 {
 					switch p.GetRouteFamily() {
 					case bgp.RF_IPv4_UC:
-						t = mrt.RIB_IPV4_UNICAST
+						return mrt.RIB_IPV4_UNICAST
 					case bgp.RF_IPv4_MC:
-						t = mrt.RIB_IPV4_MULTICAST
+						return mrt.RIB_IPV4_MULTICAST
 					case bgp.RF_IPv6_UC:
-						t = mrt.RIB_IPV6_UNICAST
+						return mrt.RIB_IPV6_UNICAST
 					case bgp.RF_IPv6_MC:
-						t = mrt.RIB_IPV6_MULTICAST
+						return mrt.RIB_IPV6_MULTICAST
 					}
-					if isAddPath {
-						// Shift non-additional-path version to *_ADDPATH
-						t += 6
-					}
-					return t
+					return mrt.RIB_GENERIC
 				}
 
 				seq := uint32(0)
-				appendTableDumpMsg := func(path *table.Path, entries []*mrt.RibEntry, isAddPath bool) {
-					st := subtype(path, isAddPath)
-					if bm, err := mrt.NewMRTMessage(t, mrt.TABLE_DUMPv2, st, mrt.NewRib(seq, path.GetNlri(), entries)); err != nil {
-						log.WithFields(log.Fields{
-							"Topic": "mrt",
-							"Data":  e,
-							"Error": err,
-						}).Warnf("Failed to create MRT TABLE_DUMPv2 message (subtype %d)", st)
-					} else {
-						msg = append(msg, bm)
-						seq++
-					}
-				}
-				for _, pathList := range e.PathList {
+				for _, pathList := range m.PathList {
 					entries := make([]*mrt.RibEntry, 0, len(pathList))
-					entriesAddPath := make([]*mrt.RibEntry, 0, len(pathList))
 					for _, path := range pathList {
 						if path.IsLocal() {
 							continue
 						}
-						isAddPath := false
-						if neighbor, ok := neighborMap[path.GetSource().Address.String()]; ok {
-							isAddPath = neighbor.IsAddPathReceiveEnabled(path.GetRouteFamily())
-						}
-						if !isAddPath {
-							entries = append(entries, mrt.NewRibEntry(idx(path), uint32(path.GetTimestamp().Unix()), 0, path.GetPathAttrs(), false))
-						} else {
-							entriesAddPath = append(entriesAddPath, mrt.NewRibEntry(idx(path), uint32(path.GetTimestamp().Unix()), path.GetNlri().PathIdentifier(), path.GetPathAttrs(), true))
-						}
+						entries = append(entries, mrt.NewRibEntry(idx(path), uint32(path.GetTimestamp().Unix()), 0, path.GetPathAttrs()))
 					}
 					if len(entries) > 0 {
-						appendTableDumpMsg(pathList[0], entries, false)
-					}
-					if len(entriesAddPath) > 0 {
-						appendTableDumpMsg(pathList[0], entriesAddPath, true)
+						bm, _ := mrt.NewMRTMessage(t, mrt.TABLE_DUMPv2, subtype(pathList[0]), mrt.NewRib(seq, pathList[0].GetNlri(), entries))
+						msg = append(msg, bm)
+						seq++
 					}
 				}
 			}
@@ -243,7 +204,7 @@ func (m *mrtWriter) loop() error {
 		}
 		rotate := func() {
 			m.file.Close()
-			file, err := mrtFileOpen(m.c.FileName, m.rotationInterval)
+			file, err := mrtFileOpen(m.filename, m.rotationInterval)
 			if err == nil {
 				m.file = file
 			} else {
@@ -260,11 +221,11 @@ func (m *mrtWriter) loop() error {
 			return nil
 		case e := <-w.Event():
 			drain(e)
-			if m.c.DumpType == config.MRT_TYPE_TABLE && m.rotationInterval != 0 {
+			if m.dumpType == config.MRT_TYPE_TABLE && m.rotationInterval != 0 {
 				rotate()
 			}
 		case <-rotator.C:
-			if m.c.DumpType == config.MRT_TYPE_UPDATES {
+			if m.dumpType == config.MRT_TYPE_UPDATES {
 				rotate()
 			} else {
 				w.Generate(WATCH_EVENT_TYPE_TABLE)
@@ -317,15 +278,17 @@ func mrtFileOpen(filename string, interval uint64) (*os.File, error) {
 	return file, err
 }
 
-func newMrtWriter(s *BgpServer, c *config.MrtConfig, rInterval, dInterval uint64) (*mrtWriter, error) {
-	file, err := mrtFileOpen(c.FileName, rInterval)
+func newMrtWriter(s *BgpServer, dumpType config.MrtType, filename, tablename string, rInterval, dInterval uint64) (*mrtWriter, error) {
+	file, err := mrtFileOpen(filename, rInterval)
 	if err != nil {
 		return nil, err
 	}
 	m := mrtWriter{
+		dumpType:         dumpType,
 		s:                s,
-		c:                c,
+		filename:         filename,
 		file:             file,
+		tablename:        tablename,
 		rotationInterval: rInterval,
 		dumpInterval:     dInterval,
 	}
@@ -350,7 +313,7 @@ func (m *mrtManager) enable(c *config.MrtConfig) error {
 		if rInterval < MIN_ROTATION_INTERVAL {
 			log.WithFields(log.Fields{
 				"Topic": "MRT",
-			}).Infof("minimum mrt rotation interval is %d seconds", MIN_ROTATION_INTERVAL)
+			}).Info("minimum mrt rotation interval is %d seconds", MIN_ROTATION_INTERVAL)
 			rInterval = MIN_ROTATION_INTERVAL
 		}
 	}
@@ -360,7 +323,7 @@ func (m *mrtManager) enable(c *config.MrtConfig) error {
 			if dInterval < MIN_DUMP_INTERVAL {
 				log.WithFields(log.Fields{
 					"Topic": "MRT",
-				}).Infof("minimum mrt dump interval is %d seconds", MIN_DUMP_INTERVAL)
+				}).Info("minimum mrt dump interval is %d seconds", MIN_DUMP_INTERVAL)
 				dInterval = MIN_DUMP_INTERVAL
 			}
 		} else if dInterval == 0 {
@@ -377,7 +340,7 @@ func (m *mrtManager) enable(c *config.MrtConfig) error {
 		setRotationMin()
 	}
 
-	w, err := newMrtWriter(m.bgpServer, c, rInterval, dInterval)
+	w, err := newMrtWriter(m.bgpServer, c.DumpType, c.FileName, c.TableName, rInterval, dInterval)
 	if err == nil {
 		m.writer[c.FileName] = w
 	}

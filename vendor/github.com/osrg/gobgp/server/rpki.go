@@ -25,13 +25,12 @@ import (
 	"time"
 
 	"github.com/armon/go-radix"
-	log "github.com/sirupsen/logrus"
-	"golang.org/x/net/context"
-
 	"github.com/osrg/gobgp/config"
 	"github.com/osrg/gobgp/packet/bgp"
 	"github.com/osrg/gobgp/packet/rtr"
 	"github.com/osrg/gobgp/table"
+	log "github.com/sirupsen/logrus"
+	"golang.org/x/net/context"
 )
 
 const (
@@ -121,6 +120,9 @@ func (m *roaManager) SetAS(as uint32) error {
 }
 
 func (m *roaManager) AddServer(host string, lifetime int64) error {
+	if m.AS == 0 {
+		return fmt.Errorf("AS isn't configured yet")
+	}
 	address, port, err := net.SplitHostPort(host)
 	if err != nil {
 		return err
@@ -301,10 +303,6 @@ func (m *roaManager) deleteROA(roa *table.ROA) {
 	}).Info("Can't withdraw a ROA")
 }
 
-func (m *roaManager) DeleteROA(roa *table.ROA) {
-	m.deleteROA(roa)
-}
-
 func (m *roaManager) addROA(roa *table.ROA) {
 	tree, key := m.roa2tree(roa)
 	b, _ := tree.Get(key)
@@ -325,10 +323,6 @@ func (m *roaManager) addROA(roa *table.ROA) {
 		}
 	}
 	bucket.entries = append(bucket.entries, roa)
-}
-
-func (m *roaManager) AddROA(roa *table.ROA) {
-	m.addROA(roa)
 }
 
 func (c *roaManager) handleRTRMsg(client *roaClient, state *config.RpkiServerState, buf []byte) {
@@ -454,9 +448,7 @@ func (c *roaManager) GetServers() []*config.RpkiServer {
 		l = append(l, &config.RpkiServer{
 			Config: config.RpkiServerConfig{
 				Address: addr,
-				// Note: RpkiServerConfig.Port is uint32 type, but the TCP/UDP
-				// port is 16-bit length.
-				Port: func() uint32 { p, _ := strconv.ParseUint(port, 10, 16); return uint32(p) }(),
+				Port:    func() uint32 { p, _ := strconv.Atoi(port); return uint32(p) }(),
 			},
 			State: client.state,
 		})
@@ -497,7 +489,7 @@ func (c *roaManager) GetRoa(family bgp.RouteFamily) ([]*table.ROA, error) {
 	return l, nil
 }
 
-func ValidatePath(ownAs uint32, tree *radix.Tree, cidr string, asPath *bgp.PathAttributeAsPath) *table.Validation {
+func ValidatePath(ownAs uint32, tree *radix.Tree, cidr string, asPath *bgp.PathAttributeAsPath) (*table.Validation, *RoaBucket) {
 	var as uint32
 
 	validation := &table.Validation{
@@ -522,7 +514,7 @@ func ValidatePath(ownAs uint32, tree *radix.Tree, cidr string, asPath *bgp.PathA
 		case bgp.BGP_ASPATH_ATTR_TYPE_CONFED_SET, bgp.BGP_ASPATH_ATTR_TYPE_CONFED_SEQ:
 			as = ownAs
 		default:
-			return validation
+			return validation, nil
 		}
 	}
 	_, n, _ := net.ParseCIDR(cidr)
@@ -531,7 +523,7 @@ func ValidatePath(ownAs uint32, tree *radix.Tree, cidr string, asPath *bgp.PathA
 	key := table.IpToRadixkey(n.IP, prefixLen)
 	_, b, _ := tree.LongestPrefix(key)
 	if b == nil {
-		return validation
+		return validation, nil
 	}
 
 	var bucket *RoaBucket
@@ -566,7 +558,7 @@ func ValidatePath(ownAs uint32, tree *radix.Tree, cidr string, asPath *bgp.PathA
 		validation.Reason = table.RPKI_VALIDATION_REASON_TYPE_NONE
 	}
 
-	return validation
+	return validation, bucket
 }
 
 func (c *roaManager) validate(pathList []*table.Path) {
@@ -580,7 +572,7 @@ func (c *roaManager) validate(pathList []*table.Path) {
 			continue
 		}
 		if tree, ok := c.Roas[path.GetRouteFamily()]; ok {
-			v := ValidatePath(c.AS, tree, path.GetNlri().String(), path.GetAsPath())
+			v, _ := ValidatePath(c.AS, tree, path.GetNlri().String(), path.GetAsPath())
 			path.SetValidation(v)
 		}
 	}

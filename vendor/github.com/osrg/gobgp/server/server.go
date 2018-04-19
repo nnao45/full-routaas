@@ -72,7 +72,7 @@ func NewTCPListener(address string, port uint32, ch chan *net.TCPConn) (*TCPList
 		log.WithFields(log.Fields{
 			"Topic": "Peer",
 			"Key":   addr,
-		}).Warnf("cannot set TTL(=%d) for TCPListener: %s", 255, err)
+		}).Warnf("cannot set TTL(=%d) for TCPLisnter: %s", 255, err)
 	}
 
 	closeCh := make(chan struct{})
@@ -251,11 +251,7 @@ func (server *BgpServer) Serve() {
 				log.WithFields(log.Fields{
 					"Topic": "Peer",
 				}).Debugf("Accepted a new dynamic neighbor from:%s", remoteAddr)
-				rib := server.globalRib
-				if pg.Conf.RouteServer.Config.RouteServerClient {
-					rib = server.rsRib
-				}
-				peer := newDynamicPeer(&server.bgpConfig.Global, remoteAddr, pg.Conf, rib, server.policy)
+				peer := newDynamicPeer(&server.bgpConfig.Global, remoteAddr, pg.Conf, server.globalRib, server.policy)
 				if peer == nil {
 					log.WithFields(log.Fields{
 						"Topic": "Peer",
@@ -341,7 +337,7 @@ func sendFsmOutgoingMsg(peer *Peer, paths []*table.Path, notification *bgp.BGPMe
 
 func isASLoop(peer *Peer, path *table.Path) bool {
 	for _, as := range path.GetAsList() {
-		if as == peer.AS() {
+		if as == peer.fsm.pConf.State.PeerAs {
 			return true
 		}
 	}
@@ -382,7 +378,7 @@ func filterpath(peer *Peer, path, old *table.Path) *table.Path {
 			ignore = true
 			info := path.GetSource()
 			//if the path comes from eBGP peer
-			if info.AS != peer.AS() {
+			if info.AS != peer.fsm.pConf.State.PeerAs {
 				ignore = false
 			}
 			// RFC4456 8. Avoiding Routing Information Loops
@@ -420,19 +416,13 @@ func filterpath(peer *Peer, path, old *table.Path) *table.Path {
 		}
 
 		if ignore {
-			if !path.IsWithdraw && old != nil {
-				oldSource := old.GetSource()
-				if old.IsLocal() || oldSource.Address.String() != peer.ID() && oldSource.AS != peer.AS() {
-					// In this case, we suppose this peer has the same prefix
-					// received from another iBGP peer.
-					// So we withdraw the old best which was injected locally
-					// (from CLI or gRPC for example) in order to avoid the
-					// old best left on peers.
-					// Also, we withdraw the eBGP route which is the old best.
-					// When we got the new best from iBGP, we don't advertise
-					// the new best and need to withdraw the old best.
-					return old.Clone(true)
-				}
+			if !path.IsWithdraw && old != nil && old.GetSource().Address.String() != peer.ID() && old.GetSource().AS != peer.fsm.pConf.State.PeerAs {
+				// we advertise a route from ebgp,
+				// which is the old best. We got the
+				// new best from ibgp. We don't
+				// advertise the new best and need to
+				// withdraw the old.
+				return old.Clone(true)
 			}
 			log.WithFields(log.Fields{
 				"Topic": "Peer",
@@ -488,10 +478,6 @@ func clonePathList(pathList []*table.Path) []*table.Path {
 }
 
 func (server *BgpServer) notifyBestWatcher(best []*table.Path, multipath [][]*table.Path) {
-	if table.SelectionOptions.DisableBestPathSelection {
-		// Note: If best path selection disabled, no best path to notify.
-		return
-	}
 	clonedM := make([][]*table.Path, len(multipath))
 	for i, pathList := range multipath {
 		clonedM[i] = clonePathList(pathList)
@@ -508,33 +494,6 @@ func (server *BgpServer) notifyBestWatcher(best []*table.Path, multipath [][]*ta
 		}
 	}
 	server.notifyWatcher(WATCH_EVENT_TYPE_BEST_PATH, &WatchEventBestPath{PathList: clonedB, MultiPathList: clonedM})
-}
-
-func (server *BgpServer) notifyPrePolicyUpdateWatcher(peer *Peer, pathList []*table.Path, msg *bgp.BGPMessage, timestamp time.Time, payload []byte) {
-	if !server.isWatched(WATCH_EVENT_TYPE_PRE_UPDATE) || peer == nil {
-		return
-	}
-	cloned := clonePathList(pathList)
-	if len(cloned) == 0 {
-		return
-	}
-	_, y := peer.fsm.capMap[bgp.BGP_CAP_FOUR_OCTET_AS_NUMBER]
-	l, _ := peer.fsm.LocalHostPort()
-	ev := &WatchEventUpdate{
-		Message:      msg,
-		PeerAS:       peer.fsm.peerInfo.AS,
-		LocalAS:      peer.fsm.peerInfo.LocalAS,
-		PeerAddress:  peer.fsm.peerInfo.Address,
-		LocalAddress: net.ParseIP(l),
-		PeerID:       peer.fsm.peerInfo.ID,
-		FourBytesAs:  y,
-		Timestamp:    timestamp,
-		Payload:      payload,
-		PostPolicy:   false,
-		PathList:     cloned,
-		Neighbor:     peer.ToConfig(false),
-	}
-	server.notifyWatcher(WATCH_EVENT_TYPE_PRE_UPDATE, ev)
 }
 
 func (server *BgpServer) notifyPostPolicyUpdateWatcher(peer *Peer, pathList []*table.Path) {
@@ -557,16 +516,11 @@ func (server *BgpServer) notifyPostPolicyUpdateWatcher(peer *Peer, pathList []*t
 		Timestamp:    cloned[0].GetTimestamp(),
 		PostPolicy:   true,
 		PathList:     cloned,
-		Neighbor:     peer.ToConfig(false),
 	}
 	server.notifyWatcher(WATCH_EVENT_TYPE_POST_UPDATE, ev)
 }
 
 func dstsToPaths(id string, dsts []*table.Destination, addpath bool) ([]*table.Path, []*table.Path, [][]*table.Path) {
-	if table.SelectionOptions.DisableBestPathSelection {
-		// Note: If best path selection disabled, there is no best path.
-		return nil, nil, nil
-	}
 	bestList := make([]*table.Path, 0, len(dsts))
 	oldList := make([]*table.Path, 0, len(dsts))
 	mpathList := make([][]*table.Path, 0, len(dsts))
@@ -705,7 +659,7 @@ func (server *BgpServer) RSimportPaths(peer *Peer, pathList []*table.Path) []*ta
 func (server *BgpServer) propagateUpdate(peer *Peer, pathList []*table.Path) {
 	var dsts []*table.Destination
 
-	var gBestList, gOldList []*table.Path
+	var gBestList, gOldList, bestList, oldList []*table.Path
 	var mpathList [][]*table.Path
 
 	rib := server.globalRib
@@ -732,15 +686,7 @@ func (server *BgpServer) propagateUpdate(peer *Peer, pathList []*table.Path) {
 		dsts = rib.ProcessPaths(append(pathList, moded...))
 	} else {
 		for idx, path := range pathList {
-			var options *table.PolicyOptions
-			if peer != nil {
-				options = &table.PolicyOptions{
-					Info: peer.fsm.peerInfo,
-				}
-			} else {
-				options = nil
-			}
-			if p := server.policy.ApplyPolicy(table.GLOBAL_RIB_NAME, table.POLICY_DIRECTION_IMPORT, path, options); p != nil {
+			if p := server.policy.ApplyPolicy(table.GLOBAL_RIB_NAME, table.POLICY_DIRECTION_IMPORT, path, nil); p != nil {
 				path = p
 			} else {
 				path = path.Clone(true)
@@ -754,7 +700,7 @@ func (server *BgpServer) propagateUpdate(peer *Peer, pathList []*table.Path) {
 			// match the Route Target in question.
 			//
 			// A BGP speaker should generate the minimum set of BGP VPN route
-			// updates (advertisements and/or withdraws) necessary to transition
+			// updates (advertisements and/or withdrawls) necessary to transition
 			// between the previous and current state of the route distribution
 			// graph that is derived from Route Target membership information.
 			if peer != nil && path != nil && path.GetRouteFamily() == bgp.RF_RTC_UC {
@@ -798,24 +744,14 @@ func (server *BgpServer) propagateUpdate(peer *Peer, pathList []*table.Path) {
 		server.notifyBestWatcher(gBestList, mpathList)
 	}
 
-	server.propagateUpdateToNeighbors(peer, dsts, gBestList, gOldList)
-}
-
-func (server *BgpServer) propagateUpdateToNeighbors(peer *Peer, dsts []*table.Destination, gBestList, gOldList []*table.Path) {
-	if table.SelectionOptions.DisableBestPathSelection {
-		// Note: If best path selection disabled, no best path to propagate.
-		return
-	}
 	families := make(map[bgp.RouteFamily][]*table.Destination)
 	for _, dst := range dsts {
-		family := dst.Family()
-		if families[family] == nil {
-			families[family] = make([]*table.Destination, 0, len(dsts))
+		if families[dst.Family()] == nil {
+			families[dst.Family()] = make([]*table.Destination, 0, len(dsts))
 		}
-		families[family] = append(families[family], dst)
+		families[dst.Family()] = append(families[dst.Family()], dst)
 	}
 
-	var bestList, oldList []*table.Path
 	for family, l := range families {
 		for _, targetPeer := range server.neighborMap {
 			if (peer == nil && targetPeer.isRouteServerClient()) || (peer != nil && peer.isRouteServerClient() != targetPeer.isRouteServerClient()) {
@@ -869,8 +805,6 @@ func (server *BgpServer) handleFSMMessage(peer *Peer, e *FsmMsg) {
 				peer.stopPeerRestarting()
 				go peer.stopFSM()
 				delete(server.neighborMap, peer.fsm.pConf.State.NeighborAddress)
-				server.broadcastPeerState(peer, oldState)
-				return
 			}
 		} else if peer.fsm.pConf.GracefulRestart.State.PeerRestarting && nextState == bgp.BGP_FSM_IDLE {
 			if peer.fsm.pConf.GracefulRestart.State.LongLivedEnabled {
@@ -969,7 +903,7 @@ func (server *BgpServer) handleFSMMessage(peer *Peer, e *FsmMsg) {
 				// any routes (and EORs) before we send ours (or deferral-timer expires).
 				var pathList []*table.Path
 				_, y := peer.fsm.rfMap[bgp.RF_RTC_UC]
-				if c := peer.fsm.pConf.GetAfiSafi(bgp.RF_RTC_UC); y && !peer.fsm.pConf.GracefulRestart.State.PeerRestarting && c.RouteTargetMembership.Config.DeferralTime > 0 {
+				if c := config.GetAfiSafi(peer.fsm.pConf, bgp.RF_RTC_UC); y && !peer.fsm.pConf.GracefulRestart.State.PeerRestarting && c.RouteTargetMembership.Config.DeferralTime > 0 {
 					pathList, _ = peer.getBestFromLocal([]bgp.RouteFamily{bgp.RF_RTC_UC})
 					t := c.RouteTargetMembership.Config.DeferralTime
 					for _, f := range peer.configuredRFlist() {
@@ -1017,7 +951,6 @@ func (server *BgpServer) handleFSMMessage(peer *Peer, e *FsmMsg) {
 		if peer.fsm.adminState == ADMIN_STATE_DOWN {
 			peer.fsm.pConf.State = config.NeighborState{}
 			peer.fsm.pConf.State.NeighborAddress = peer.fsm.pConf.Config.NeighborAddress
-			peer.fsm.pConf.State.PeerAs = peer.fsm.pConf.Config.PeerAs
 			peer.fsm.pConf.Timers.State = config.TimersState{}
 		}
 		peer.startFSMHandler(server.fsmincomingCh, server.fsmStateCh)
@@ -1046,8 +979,23 @@ func (server *BgpServer) handleFSMMessage(peer *Peer, e *FsmMsg) {
 				sendFsmOutgoingMsg(peer, nil, notification, true)
 				return
 			}
-			if m.Header.Type == bgp.BGP_MSG_UPDATE {
-				server.notifyPrePolicyUpdateWatcher(peer, pathList, m, e.timestamp, e.payload)
+			if m.Header.Type == bgp.BGP_MSG_UPDATE && server.isWatched(WATCH_EVENT_TYPE_PRE_UPDATE) {
+				_, y := peer.fsm.capMap[bgp.BGP_CAP_FOUR_OCTET_AS_NUMBER]
+				l, _ := peer.fsm.LocalHostPort()
+				ev := &WatchEventUpdate{
+					Message:      m,
+					PeerAS:       peer.fsm.peerInfo.AS,
+					LocalAS:      peer.fsm.peerInfo.LocalAS,
+					PeerAddress:  peer.fsm.peerInfo.Address,
+					LocalAddress: net.ParseIP(l),
+					PeerID:       peer.fsm.peerInfo.ID,
+					FourBytesAs:  y,
+					Timestamp:    e.timestamp,
+					Payload:      e.payload,
+					PostPolicy:   false,
+					PathList:     clonePathList(pathList),
+				}
+				server.notifyWatcher(WATCH_EVENT_TYPE_PRE_UPDATE, ev)
 			}
 
 			if len(pathList) > 0 {
@@ -1061,7 +1009,7 @@ func (server *BgpServer) handleFSMMessage(peer *Peer, e *FsmMsg) {
 						rtc = true
 					}
 					for i, a := range peer.fsm.pConf.AfiSafis {
-						if a.State.Family == f {
+						if g, _ := bgp.GetRouteFamily(string(a.Config.AfiSafiName)); f == g {
 							peer.fsm.pConf.AfiSafis[i].MpGracefulRestart.State.EndOfRibReceived = true
 						}
 					}
@@ -1120,7 +1068,7 @@ func (server *BgpServer) handleFSMMessage(peer *Peer, e *FsmMsg) {
 
 				// received EOR of route-target address family
 				// outbound filter is now ready, let's flash non-route-target NLRIs
-				if c := peer.fsm.pConf.GetAfiSafi(bgp.RF_RTC_UC); rtc && c != nil && c.RouteTargetMembership.Config.DeferralTime > 0 {
+				if c := config.GetAfiSafi(peer.fsm.pConf, bgp.RF_RTC_UC); rtc && c != nil && c.RouteTargetMembership.Config.DeferralTime > 0 {
 					log.WithFields(log.Fields{
 						"Topic": "Peer",
 						"Key":   peer.ID(),
@@ -1187,10 +1135,6 @@ func (s *BgpServer) Shutdown() {
 		stateOp := AdminStateOperation{ADMIN_STATE_DOWN, nil}
 		for _, p := range s.neighborMap {
 			p.fsm.adminStateCh <- stateOp
-		}
-		// the main goroutine waits for peers' goroutines to stop but if no peer is configured, needs to die immediately.
-		if len(s.neighborMap) == 0 {
-			os.Exit(0)
 		}
 		// TODO: call fsmincomingCh.Close()
 		return nil
@@ -1304,41 +1248,20 @@ func (server *BgpServer) fixupApiPath(vrfId string, pathList []*table.Path) erro
 			}
 		}
 
-		// Address Family specific Handling
-		switch nlri := path.GetNlri().(type) {
-		case *bgp.EVPNNLRI:
-			switch r := nlri.RouteTypeData.(type) {
-			case *bgp.EVPNMacIPAdvertisementRoute:
-				// MAC Mobility Extended Community
+		if path.GetRouteFamily() == bgp.RF_EVPN {
+			nlri := path.GetNlri()
+			evpnNlri := nlri.(*bgp.EVPNNLRI)
+			if evpnNlri.RouteType == bgp.EVPN_ROUTE_TYPE_MAC_IP_ADVERTISEMENT {
+				macIpAdv := evpnNlri.RouteTypeData.(*bgp.EVPNMacIPAdvertisementRoute)
+				etag := macIpAdv.ETag
+				mac := macIpAdv.MacAddress
 				paths := server.globalRib.GetBestPathList(table.GLOBAL_RIB_NAME, []bgp.RouteFamily{bgp.RF_EVPN})
-				if m := getMacMobilityExtendedCommunity(r.ETag, r.MacAddress, paths); m != nil {
+				if m := getMacMobilityExtendedCommunity(etag, mac, paths); m != nil {
 					path.SetExtCommunities([]bgp.ExtendedCommunityInterface{m}, false)
-				}
-			case *bgp.EVPNEthernetSegmentRoute:
-				// RFC7432: BGP MPLS-Based Ethernet VPN
-				// 7.6. ES-Import Route Target
-				// The value is derived automatically for the ESI Types 1, 2,
-				// and 3, by encoding the high-order 6-octet portion of the 9-octet ESI
-				// Value, which corresponds to a MAC address, in the ES-Import Route
-				// Target.
-				// Note: If the given path already has the ES-Import Route Target,
-				// skips deriving a new one.
-				found := false
-				for _, extComm := range path.GetExtCommunities() {
-					if _, found = extComm.(*bgp.ESImportRouteTarget); found {
-						break
-					}
-				}
-				if !found {
-					switch r.ESI.Type {
-					case bgp.ESI_LACP, bgp.ESI_MSTP, bgp.ESI_MAC:
-						mac := net.HardwareAddr(r.ESI.Value[0:6])
-						rt := &bgp.ESImportRouteTarget{ESImport: mac}
-						path.SetExtCommunities([]bgp.ExtendedCommunityInterface{rt}, false)
-					}
 				}
 			}
 		}
+
 	}
 	return nil
 }
@@ -1350,7 +1273,6 @@ func (s *BgpServer) AddPath(vrfId string, pathList []*table.Path) (uuidBytes []b
 		}
 		if len(pathList) == 1 {
 			pathList[0].AssignNewUUID()
-			uuidBytes = pathList[0].UUID().Bytes()
 		}
 		s.propagateUpdate(nil, pathList)
 		return nil
@@ -1362,29 +1284,27 @@ func (s *BgpServer) DeletePath(uuid []byte, f bgp.RouteFamily, vrfId string, pat
 	return s.mgmtOperation(func() error {
 		deletePathList := make([]*table.Path, 0)
 		if len(uuid) > 0 {
-			// Delete locally generated path which has the given UUID
 			path := func() *table.Path {
 				for _, path := range s.globalRib.GetPathList(table.GLOBAL_RIB_NAME, s.globalRib.GetRFlist()) {
-					if path.IsLocal() && len(path.UUID()) > 0 && bytes.Equal(path.UUID().Bytes(), uuid) {
+					if len(path.UUID()) > 0 && bytes.Equal(path.UUID().Bytes(), uuid) {
 						return path
 					}
 				}
 				return nil
 			}()
-			if path == nil {
+			if path != nil {
+				deletePathList = append(deletePathList, path.Clone(true))
+			} else {
 				return fmt.Errorf("Can't find a specified path")
 			}
-			deletePathList = append(deletePathList, path.Clone(true))
 		} else if len(pathList) == 0 {
-			// Delete all locally generated paths
+			// delete all paths
 			families := s.globalRib.GetRFlist()
 			if f != 0 {
 				families = []bgp.RouteFamily{f}
 			}
 			for _, path := range s.globalRib.GetPathList(table.GLOBAL_RIB_NAME, families) {
-				if path.IsLocal() {
-					deletePathList = append(deletePathList, path.Clone(true))
-				}
+				deletePathList = append(deletePathList, path.Clone(true))
 			}
 		} else {
 			if err := s.fixupApiPath(vrfId, pathList); err != nil {
@@ -1402,10 +1322,8 @@ func (s *BgpServer) UpdatePath(vrfId string, pathList []*table.Path) error {
 		if err := s.fixupApiPath(vrfId, pathList); err != nil {
 			return err
 		}
-		dsts := s.globalRib.ProcessPaths(pathList)
-		gBestList, gOldList, gMPathList := dstsToPaths(table.GLOBAL_RIB_NAME, dsts, false)
-		s.notifyBestWatcher(gBestList, gMPathList)
-		s.propagateUpdateToNeighbors(nil, dsts, gBestList, gOldList)
+
+		s.propagateUpdate(nil, pathList)
 		return nil
 	}, true)
 	return err
@@ -1579,7 +1497,7 @@ func (s *BgpServer) softResetOut(addr string, family bgp.RouteFamily, deferral b
 					"Key":      peer.ID(),
 					"Families": families,
 				}).Debug("deferral timer expired")
-			} else if c := peer.fsm.pConf.GetAfiSafi(bgp.RF_RTC_UC); y && !c.MpGracefulRestart.State.EndOfRibReceived {
+			} else if c := config.GetAfiSafi(peer.fsm.pConf, bgp.RF_RTC_UC); y && !c.MpGracefulRestart.State.EndOfRibReceived {
 				log.WithFields(log.Fields{
 					"Topic":    "Peer",
 					"Key":      peer.ID(),
@@ -1768,7 +1686,7 @@ func (s *BgpServer) GetNeighbor(address string, getAdvertised bool) (l []*config
 	s.mgmtOperation(func() error {
 		l = make([]*config.Neighbor, 0, len(s.neighborMap))
 		for k, peer := range s.neighborMap {
-			if address != "" && address != k && address != peer.fsm.pConf.Config.NeighborInterface {
+			if address != "" && address != k {
 				continue
 			}
 			l = append(l, peer.ToConfig(getAdvertised))
@@ -1795,7 +1713,7 @@ func (server *BgpServer) addPeerGroup(c *config.PeerGroup) error {
 }
 
 func (server *BgpServer) addNeighbor(c *config.Neighbor) error {
-	addr, err := c.ExtractNeighborAddress()
+	addr, err := config.ExtractNeighborAddress(c)
 	if err != nil {
 		return err
 	}
@@ -1804,16 +1722,13 @@ func (server *BgpServer) addNeighbor(c *config.Neighbor) error {
 		return fmt.Errorf("Can't overwrite the existing peer: %s", addr)
 	}
 
-	var pgConf *config.PeerGroup
 	if c.Config.PeerGroup != "" {
-		pg, ok := server.peerGroupMap[c.Config.PeerGroup]
-		if !ok {
-			return fmt.Errorf("no such peer-group: %s", c.Config.PeerGroup)
+		if err := config.OverwriteNeighborConfigWithPeerGroup(c, server.peerGroupMap[c.Config.PeerGroup].Conf); err != nil {
+			return err
 		}
-		pgConf = pg.Conf
 	}
 
-	if err := config.SetDefaultNeighborConfigValues(c, pgConf, &server.bgpConfig.Global); err != nil {
+	if err := config.SetDefaultNeighborConfigValues(c, server.bgpConfig.Global.Config.As); err != nil {
 		return err
 	}
 
@@ -1925,7 +1840,7 @@ func (server *BgpServer) deleteNeighbor(c *config.Neighbor, code, subcode uint8)
 		}
 	}
 
-	addr, err := c.ExtractNeighborAddress()
+	addr, err := config.ExtractNeighborAddress(c)
 	if err != nil {
 		return err
 	}
@@ -2010,16 +1925,12 @@ func (s *BgpServer) UpdatePeerGroup(pg *config.PeerGroup) (needsSoftResetIn bool
 
 func (s *BgpServer) updateNeighbor(c *config.Neighbor) (needsSoftResetIn bool, err error) {
 	if c.Config.PeerGroup != "" {
-		if pg, ok := s.peerGroupMap[c.Config.PeerGroup]; ok {
-			if err := config.SetDefaultNeighborConfigValues(c, pg.Conf, &s.bgpConfig.Global); err != nil {
-				return needsSoftResetIn, err
-			}
-		} else {
-			return needsSoftResetIn, fmt.Errorf("no such peer-group: %s", c.Config.PeerGroup)
+		if err := config.OverwriteNeighborConfigWithPeerGroup(c, s.peerGroupMap[c.Config.PeerGroup].Conf); err != nil {
+			return needsSoftResetIn, err
 		}
 	}
 
-	addr, err := c.ExtractNeighborAddress()
+	addr, err := config.ExtractNeighborAddress(c)
 	if err != nil {
 		return needsSoftResetIn, err
 	}
@@ -2455,7 +2366,6 @@ type WatchEventUpdate struct {
 	Payload      []byte
 	PostPolicy   bool
 	PathList     []*table.Path
-	Neighbor     *config.Neighbor
 }
 
 type WatchEventPeerState struct {
@@ -2724,7 +2634,6 @@ func (s *BgpServer) Watch(opts ...WatchOption) (w *Watcher) {
 				if peer.fsm.state != bgp.BGP_FSM_ESTABLISHED {
 					continue
 				}
-				configNeighbor := peer.ToConfig(false)
 				for _, rf := range peer.configuredRFlist() {
 					_, y := peer.fsm.capMap[bgp.BGP_CAP_FOUR_OCTET_AS_NUMBER]
 					l, _ := peer.fsm.LocalHostPort()
@@ -2742,8 +2651,6 @@ func (s *BgpServer) Watch(opts ...WatchOption) (w *Watcher) {
 							Timestamp:    path.GetTimestamp(),
 							Payload:      buf,
 							PostPolicy:   false,
-							Neighbor:     configNeighbor,
-							PathList:     []*table.Path{path},
 						})
 					}
 					eor := bgp.NewEndOfRib(rf)
@@ -2759,7 +2666,6 @@ func (s *BgpServer) Watch(opts ...WatchOption) (w *Watcher) {
 						Timestamp:    time.Now(),
 						Payload:      eorBuf,
 						PostPolicy:   false,
-						Neighbor:     configNeighbor,
 					})
 				}
 			}
@@ -2774,11 +2680,6 @@ func (s *BgpServer) Watch(opts ...WatchOption) (w *Watcher) {
 					pathsByPeer[path.GetSource()] = append(pathsByPeer[path.GetSource()], path)
 				}
 				for peerInfo, paths := range pathsByPeer {
-					// create copy which can be access to without mutex
-					var configNeighbor *config.Neighbor
-					if peer, ok := s.neighborMap[peerInfo.Address.String()]; ok {
-						configNeighbor = peer.ToConfig(false)
-					}
 					for _, path := range paths {
 						msgs := table.CreateUpdateMsgFromPaths([]*table.Path{path})
 						buf, _ := msgs[0].Serialize()
@@ -2790,8 +2691,6 @@ func (s *BgpServer) Watch(opts ...WatchOption) (w *Watcher) {
 							Timestamp:   path.GetTimestamp(),
 							Payload:     buf,
 							PostPolicy:  true,
-							Neighbor:    configNeighbor,
-							PathList:    []*table.Path{path},
 						})
 					}
 					eor := bgp.NewEndOfRib(rf)
@@ -2804,7 +2703,6 @@ func (s *BgpServer) Watch(opts ...WatchOption) (w *Watcher) {
 						Timestamp:   time.Now(),
 						Payload:     eorBuf,
 						PostPolicy:  true,
-						Neighbor:    configNeighbor,
 					})
 				}
 			}

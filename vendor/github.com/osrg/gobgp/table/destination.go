@@ -23,56 +23,32 @@ import (
 	"net"
 	"sort"
 
-	log "github.com/sirupsen/logrus"
-
 	"github.com/osrg/gobgp/config"
 	"github.com/osrg/gobgp/packet/bgp"
+	log "github.com/sirupsen/logrus"
 )
 
 var SelectionOptions config.RouteSelectionOptionsConfig
 var UseMultiplePaths config.UseMultiplePathsConfig
 
-type BestPathReason uint8
+type BestPathReason string
 
 const (
-	BPR_UNKNOWN BestPathReason = iota
-	BPR_DISABLED
-	BPR_ONLY_PATH
-	BPR_REACHABLE_NEXT_HOP
-	BPR_HIGHEST_WEIGHT
-	BPR_LOCAL_PREF
-	BPR_LOCAL_ORIGIN
-	BPR_ASPATH
-	BPR_ORIGIN
-	BPR_MED
-	BPR_ASN
-	BPR_IGP_COST
-	BPR_ROUTER_ID
-	BPR_OLDER
-	BPR_NON_LLGR_STALE
+	BPR_UNKNOWN            BestPathReason = "Unknown"
+	BPR_ONLY_PATH          BestPathReason = "Only Path"
+	BPR_REACHABLE_NEXT_HOP BestPathReason = "Reachable Next Hop"
+	BPR_HIGHEST_WEIGHT     BestPathReason = "Highest Weight"
+	BPR_LOCAL_PREF         BestPathReason = "Local Pref"
+	BPR_LOCAL_ORIGIN       BestPathReason = "Local Origin"
+	BPR_ASPATH             BestPathReason = "AS Path"
+	BPR_ORIGIN             BestPathReason = "Origin"
+	BPR_MED                BestPathReason = "MED"
+	BPR_ASN                BestPathReason = "ASN"
+	BPR_IGP_COST           BestPathReason = "IGP Cost"
+	BPR_ROUTER_ID          BestPathReason = "Router ID"
+	BPR_OLDER              BestPathReason = "Older"
+	BPR_NON_LLGR_STALE     BestPathReason = "no LLGR Stale"
 )
-
-var BestPathReasonStringMap = map[BestPathReason]string{
-	BPR_UNKNOWN:            "Unknown",
-	BPR_DISABLED:           "Bestpath selection disabled",
-	BPR_ONLY_PATH:          "Only Path",
-	BPR_REACHABLE_NEXT_HOP: "Reachable Next Hop",
-	BPR_HIGHEST_WEIGHT:     "Highest Weight",
-	BPR_LOCAL_PREF:         "Local Pref",
-	BPR_LOCAL_ORIGIN:       "Local Origin",
-	BPR_ASPATH:             "AS Path",
-	BPR_ORIGIN:             "Origin",
-	BPR_MED:                "MED",
-	BPR_ASN:                "ASN",
-	BPR_IGP_COST:           "IGP Cost",
-	BPR_ROUTER_ID:          "Router ID",
-	BPR_OLDER:              "Older",
-	BPR_NON_LLGR_STALE:     "no LLGR Stale",
-}
-
-func (r *BestPathReason) String() string {
-	return BestPathReasonStringMap[*r]
-}
 
 func IpToRadixkey(b []byte, max uint8) string {
 	var buffer bytes.Buffer
@@ -116,7 +92,6 @@ type PeerInfo struct {
 	RouteReflectorClient    bool
 	RouteReflectorClusterID net.IP
 	MultihopTtl             uint8
-	Confederation           bool
 }
 
 func (lhs *PeerInfo) Equal(rhs *PeerInfo) bool {
@@ -161,7 +136,6 @@ func NewPeerInfo(g *config.Global, p *config.Neighbor) *PeerInfo {
 		Address:                 naddr.IP,
 		RouteReflectorClusterID: id,
 		MultihopTtl:             p.EbgpMultihop.Config.MultihopTtl,
-		Confederation:           p.IsConfederationMember(g),
 	}
 }
 
@@ -517,12 +491,6 @@ func (dest *Destination) implicitWithdraw() paths {
 }
 
 func (dest *Destination) computeKnownBestPath() (*Path, BestPathReason, error) {
-	if SelectionOptions.DisableBestPathSelection {
-		log.WithFields(log.Fields{
-			"Topic": "Table",
-		}).Debug("computeKnownBestPath skipped")
-		return nil, BPR_DISABLED, nil
-	}
 
 	// If we do not have any paths to this destination, then we do not have
 	// new best path.
@@ -532,7 +500,7 @@ func (dest *Destination) computeKnownBestPath() (*Path, BestPathReason, error) {
 
 	log.WithFields(log.Fields{
 		"Topic": "Table",
-	}).Debugf("computeKnownBestPath knownPathList: %d", len(dest.knownPathList))
+	}).Debugf("computeKnownBestPath known pathlist: %d", len(dest.knownPathList))
 
 	// We pick the first path as current best path. This helps in breaking
 	// tie between two new paths learned in one cycle for which best-path
@@ -772,12 +740,6 @@ func compareByASPath(path1, path2 *Path) *Path {
 	//
 	// Shortest as-path length is preferred. If both path have same lengths,
 	// we return None.
-	if SelectionOptions.IgnoreAsPathLength {
-		log.WithFields(log.Fields{
-			"Topic": "Table",
-		}).Debug("compareByASPath -- skip")
-		return nil
-	}
 	log.WithFields(log.Fields{
 		"Topic": "Table",
 	}).Debug("enter compareByASPath")
@@ -831,11 +793,11 @@ func compareByOrigin(path1, path2 *Path) *Path {
 		return nil
 	}
 
-	origin1 := attribute1.(*bgp.PathAttributeOrigin).Value
-	origin2 := attribute2.(*bgp.PathAttributeOrigin).Value
+	origin1, n1 := binary.Uvarint(attribute1.(*bgp.PathAttributeOrigin).Value)
+	origin2, n2 := binary.Uvarint(attribute2.(*bgp.PathAttributeOrigin).Value)
 	log.WithFields(log.Fields{
 		"Topic": "Table",
-	}).Debugf("compareByOrigin -- origin1: %d, origin2: %d", origin1, origin2)
+	}).Debugf("compareByOrigin -- origin1: %d(%d), origin2: %d(%d)", origin1, n1, origin2, n2)
 
 	// If both paths have same origins
 	if origin1 == origin2 {
@@ -924,12 +886,9 @@ func compareByASNumber(path1, path2 *Path) *Path {
 	log.WithFields(log.Fields{
 		"Topic": "Table",
 	}).Debugf("compareByASNumber -- p1Asn: %d, p2Asn: %d", path1.GetSource().AS, path2.GetSource().AS)
-	// Path from confederation member should be treated as internal (IBGP learned) path.
-	isIBGP1 := path1.GetSource().Confederation || path1.IsIBGP()
-	isIBGP2 := path2.GetSource().Confederation || path2.IsIBGP()
-	// If one path is from ibgp peer and another is from ebgp peer, take the ebgp path.
-	if isIBGP1 != isIBGP2 {
-		if isIBGP1 {
+	// If one path is from ibgp peer and another is from ebgp peer, take the ebgp path
+	if path1.IsIBGP() != path2.IsIBGP() {
+		if path1.IsIBGP() {
 			return path2
 		}
 		return path1
