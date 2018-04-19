@@ -28,20 +28,20 @@ type bgpdConfig struct {
         As             uint32           `toml:"as"`
         RouterID       string           `toml:"router-id"`
         NeighborConfig []neighborConfig `toml:"neighbor-config"`
-        MrtConfig      mrtConfig `toml:"mrt-config"`
+        MrtConfig      mrtConfig        `toml:"mrt-config"`
 }
 
 type neighborConfig struct {
-        PeerAs          uint32 `toml:"peer-as"`
-        NeighborAddress string `toml:"neighbor-address"`
-        PeerType        string `toml:"peer-type"`
+        PeerAs          uint32          `toml:"peer-as"`
+        NeighborAddress string          `toml:"neighbor-address"`
+        PeerType        string          `toml:"peer-type"`
 }
 
 type mrtConfig struct {
-        Best        bool `toml:"best-path"`
-        SkipV4      bool `toml:"skip-v4"`
-        SkipV6      bool `toml:"skip-v6"`
-        NextHop     net.IP `toml:"next-hop"`
+        Best        bool                `toml:"best-path"`
+        SkipV4      bool                `toml:"skip-v4"`
+        SkipV6      bool                `toml:"skip-v6"`
+        NextHop     net.IP              `toml:"next-hop"`
 }
 
 type mrtOpts struct {
