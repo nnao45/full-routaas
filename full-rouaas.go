@@ -76,6 +76,13 @@ func main() {
 			PeerAs:          65000,
 			NeighborAddress: "172.30.1.176",
 		},
+		EbgpMultihop: config.EbgpMultihop{
+				Config: config.EbgpMultihopConfig{
+					Enabled:     true,
+					MultihopTtl: 255,
+				},
+			},
+		},
 		AfiSafis: []config.AfiSafi{
 			config.AfiSafi{
 				Config: config.AfiSafiConfig{
