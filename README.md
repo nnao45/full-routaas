@@ -73,5 +73,5 @@ Neighbor        Spk    AS MsgRcvd MsgSent   TblVer  InQ OutQ  Up/Down  St/PfxRcd
 My env, Total route advertisement time is 1 minutes 26sec. 😉 so fast!!
 
 ## Writer & License
-full-routaas was writed by nnao45 (WORK:Back-end Engineer, Twitter:@A_Resas, MAIL:n4sekai5y@gmail.com).  
+full-routaas was writed by nnao45 (WORK:Back-end Engineer, Twitter:@nnao45, MAIL:n4sekai5y@gmail.com).  
 This software is released under the MIT License, see LICENSE.
