@@ -63,7 +63,7 @@ func main() {
 	global := &config.Global{
 		Config: config.GlobalConfig{
 			As:       65555,
-			RouterId: "172.30.1.171",
+			RouterId: "192.168.0.1",
 		},
 	}
 
@@ -74,7 +74,7 @@ func main() {
 	neighbor := &config.Neighbor{
 		Config: config.NeighborConfig{
 			PeerAs:          65000,
-			NeighborAddress: "172.30.1.176",
+			NeighborAddress: "192.168.0.2",
 		},
 		EbgpMultihop: config.EbgpMultihop{
 			Config: config.EbgpMultihopConfig{
