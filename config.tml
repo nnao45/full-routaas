@@ -11,4 +11,4 @@
 [[bgpdconfig.neighbor-config]]
   peer-as = 65000
   neighbor-address = "192.168.0.2"
-  peer-type = "external
+  peer-type = "external"
