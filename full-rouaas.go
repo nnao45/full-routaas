@@ -20,6 +20,8 @@ import (
         "time"
 )
 
+var version string
+
 type tmlConfig struct {
         BgpdConfig bgpdConfig
 }
@@ -161,8 +163,8 @@ func main() {
 
         }()
 
+	log.Info("Running full-routaas version " + version + " !!")
         select {}
-
 }
 
 func findMrt() (mrtFile string, err error) {
