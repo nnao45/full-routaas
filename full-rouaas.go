@@ -40,7 +40,7 @@ func newmrtOpts() mrtOpts {
 		Best:       false,
 		QueueSize:  100000,
 		SkipV4:     false,
-		SkipV6:     false,
+		SkipV6:     true,
 		NextHop:    nil,
 	}
 }
