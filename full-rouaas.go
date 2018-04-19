@@ -81,7 +81,6 @@ func main() {
 					Enabled:     true,
 					MultihopTtl: 255,
 				},
-			},
 		},
 		AfiSafis: []config.AfiSafi{
 			config.AfiSafi{
