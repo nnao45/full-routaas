@@ -44,7 +44,7 @@ INFO[0015] Peer Up                                       Key=192.168.0.2 State=B
 INFO[0073] MRT injection complete!! 
 ```
 
-Alice Router(IOS-XR ver5.3.0-1 mem4GB CPU1)
+Alice Router(IOS-XRv ver5.3.0-1 mem4GB CPU1)
 ```bash
 Alice# sho bgp ipv4 unicast summary | begin Neighbor
 Neighbor        Spk    AS MsgRcvd MsgSent   TblVer  InQ OutQ  Up/Down  St/PfxRcd
