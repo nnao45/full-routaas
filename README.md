@@ -35,8 +35,6 @@ Nework Diagram.
 Bob Router(full-routaas mem4GB CPU1)  
 ```bash
 Bob# docker run -it --rm --privileged -p 179:179 nnao45/full-routaas:latest
-Successfully built 00028f3dd5c9
-Successfully tagged nnao45/full-routaas:latest
 INFO[0000] Add a peer configuration for:192.168.0.2      Topic=Peer
 INFO[0000] MRT injection file is ./rib.20180419.0000    
 INFO[0015] Peer Up                                       Key=192.168.0.2 State=BGP_FSM_OPENCONFIRM Topic=Peer
