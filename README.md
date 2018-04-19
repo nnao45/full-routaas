@@ -5,7 +5,7 @@
 
 full route images's size is "168MB"
 ```bash
-root@net-flu:full-routaas # docker images
+# docker images
 REPOSITORY                               TAG                 IMAGE ID            CREATED             SIZE
 nnao45/full-routaas                      latest              00028f3dd5c9        10 minutes ago      168MB
 <none>                                   <none>              d055571d5c0f        10 minutes ago      793MB
