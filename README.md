@@ -46,12 +46,9 @@ INFO[0073] MRT injection complete!!
 
 Alice Router(IOS-XR ver5.3.0-1 mem8MB CPU1)
 ```bash
-Alice# sho bgp ipv4 unicast summary 
-{"level":"info","msg":"gobgpd started","time":"2018-04-18T17:41:08+09:00"}
-{"Topic":"Config","level":"info","msg":"Finished reading the config file","time":"2018-04-18T17:41:08+09:00"}
-{"level":"info","msg":"Peer 172.30.1.171 is added","time":"2018-04-18T17:41:08+09:00"}
-{"Topic":"Peer","level":"info","msg":"Add a peer configuration for:172.30.1.171","time":"2018-04-18T17:41:08+09:00"}
-{"Key":"172.30.1.171","State":"BGP_FSM_OPENCONFIRM","Topic":"Peer","level":"info","msg":"Peer Up","time":"2018-04-18T17:41:26+09:00"}
+Alice# sho bgp ipv4 unicast summary | begin Neighbor
+Neighbor        Spk    AS MsgRcvd MsgSent   TblVer  InQ OutQ  Up/Down  St/PfxRcd
+192.168.0.1       0 65555 1238838      31      112    0    0 00:01:37     696234
 ```
 
-My env, Total route advertisement time is 1 minutes 40sec. 😉so fast!!
+My env, Total route advertisement time is 1 minutes 37sec. 😉so fast!!
