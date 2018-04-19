@@ -54,4 +54,4 @@ Alice# sho bgp ipv4 unicast summary
 {"Key":"172.30.1.171","State":"BGP_FSM_OPENCONFIRM","Topic":"Peer","level":"info","msg":"Peer Up","time":"2018-04-18T17:41:26+09:00"}
 ```
 
-My env, Total route advertisement time is 1 minutes 40sec😉so fast!!
+My env, Total route advertisement time is 1 minutes 40sec. 😉so fast!!
