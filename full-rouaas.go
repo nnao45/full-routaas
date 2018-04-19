@@ -77,10 +77,10 @@ func main() {
 			NeighborAddress: "172.30.1.176",
 		},
 		EbgpMultihop: config.EbgpMultihop{
-				Config: config.EbgpMultihopConfig{
-					Enabled:     true,
-					MultihopTtl: 255,
-				},
+			Config: config.EbgpMultihopConfig{
+				Enabled:     true,
+				MultihopTtl: 255,
+			},
 		},
 		AfiSafis: []config.AfiSafi{
 			config.AfiSafi{
