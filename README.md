@@ -16,6 +16,8 @@ RIB file size's size is "85MB"...so, full-routaas container size is "17MB" !!
 # ls -lh rib.20180418.0000
 -rw-r--r-- 1 root root 85M  4月 18 09:00 rib.20180418.0000
 ```
+[You can send this container with Gmail](https://support.google.com/mail/answer/6584?co=GENIE.Platform%3DDesktop&hl=en) 😂
+
 
 ## Demo
 
