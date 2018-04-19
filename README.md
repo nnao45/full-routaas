@@ -32,6 +32,25 @@ Nework Diagram.
 +---------------------------------+                            +---------------------------------+
 ```
 
+full-routaas Config is config.tml.
+if you run your env, change config.tml's paramater
+```bash
+[bgpdconfig]
+  as = 65555
+  router-id = "192.168.0.1"
+
+[bgpdconfig.mrt-config]
+  best-path = false
+  skip-v4 = false
+  skip-v6 = true
+  next-hop = "nil"
+
+[[bgpdconfig.neighbor-config]]
+  peer-as = 65000
+  neighbor-address = "192.168.0.2"
+  peer-type = "external"
+```
+
 Bob Router(full-routaas mem4GB CPU1)  
 ```bash
 Bob# docker run -it --rm --privileged -p 179:179 nnao45/full-routaas:latest
