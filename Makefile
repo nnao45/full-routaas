@@ -13,8 +13,8 @@ $(TARGET): $(SRCS)
 
 .PHONY: mibupdate clean upde dep dep-install build run launch
 
-mibupdate:
-	./get-fullroute-mib.sh 
+ribupdate:
+	./get-fullroute-rib.sh 
 
 clean:
 	rm -f full-routaas

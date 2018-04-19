@@ -89,7 +89,7 @@ func main() {
         go g.Serve()
 
         var tmlconfig tmlConfig
-        _, err := toml.DecodeFile("./app/config.tml", &tmlconfig)
+        _, err := toml.DecodeFile(".//config.tml", &tmlconfig)
         if err != nil {
                 log.Fatal(err)
         }
@@ -166,7 +166,6 @@ func main() {
                 }
 
                 defer log.Info("MRT injection complete!!")
-
         }()
 
 	log.Info("Running full-routaas version " + version + " !!")
@@ -174,13 +173,13 @@ func main() {
 }
 
 func findMrt() (mrtFile string, err error) {
-        files, e := ioutil.ReadDir("./app")
+        files, e := ioutil.ReadDir("./")
         if e != nil {
                 err = e
         }
         for _, file := range files {
                 if strings.Contains(file.Name(), "rib") {
-                        mrtFile = "./app/" + file.Name()
+                        mrtFile = "./" + file.Name()
                         return
                 }
         }

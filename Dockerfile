@@ -13,11 +13,13 @@ RUN make dep-install
 RUN make dep
 RUN make
 
-WORKDIR /app
-RUN cp -ar $GOPATH/src/app /app
+RUN mkdir /app && \
+    cp -a $GOPATH/src/app/full-routaas /app && \
+    cp -a $GOPATH/src/app/config.tml   /app && \
+    cp -a $GOPATH/src/app/rib* /app
 
 FROM busybox
 
 WORKDIR /root/
 COPY --from=builder app .
-CMD ["./app/full-routaas"]
+CMD ["./full-routaas"]
