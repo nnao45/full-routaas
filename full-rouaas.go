@@ -12,13 +12,8 @@ import (
 	log "github.com/sirupsen/logrus"
 	grpc "google.golang.org/grpc"
 	"io/ioutil"
-	//	"log/syslog"
-	//	"net/url"
 	"os"
-	//"strconv"
-	//	"encoding/json"
 	"strings"
-	//	"sync"
 	"io"
 	"net"
 	"time"
@@ -113,20 +108,6 @@ func main() {
 		log.Fatal(mErr)
 	}
 	log.Info("MRT injection file is ", m.Filename)
-	//m.Filename = "./rib.20180417.0000"
-	/*
-		go func() {
-			bgpmrtclient, err := bgpclient.InjectMrt(context.Background())
-			if err != nil {
-				fmt.Errorf("failed to add path: %s", err)
-			}
-
-			if err := g.InjectMrt(bgpmrtclient); err != nil {
-				log.Error(err)
-			}
-			defer log.Info("MRT injection complete!!")
-		}()
-	*/
 
 	go func() {
 		err := injectMrt(bgpclient, m)
