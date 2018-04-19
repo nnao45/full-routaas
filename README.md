@@ -17,7 +17,7 @@ MIB file size's size is "85MB"...so, full-routaas container size is "83MB" !!
 -rw-r--r-- 1 root root 85M  4月 18 09:00 rib.20180418.0000
 ```
 
-## Installed and Started
+## Demo
 
 Nework Diagram.
 ```bash
@@ -33,7 +33,6 @@ Nework Diagram.
 ```
 
 Bob Router(full-routaas mem4GB CPU1)  
-launch.sh Must use "docker", "bzip2"
 ```bash
 Bob# docker run -it --rm --privileged -p 179:179 nnao45/full-routaas:latest
 Successfully built 00028f3dd5c9
