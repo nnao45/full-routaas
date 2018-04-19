@@ -6,7 +6,7 @@
   best-path = false
   skip-v4 = false
   skip-v6 = true
-  next-hop = nil
+  next-hop = "nil"
 
 [[bgpdconfig.neighbor-config]]
   peer-as = 65000

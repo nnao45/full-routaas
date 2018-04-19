@@ -43,7 +43,7 @@ type mrtConfig struct {
         Best        bool                `toml:"best-path"`
         SkipV4      bool                `toml:"skip-v4"`
         SkipV6      bool                `toml:"skip-v6"`
-        NextHop     net.IP              `toml:"next-hop"`
+        NextHop     string              `toml:"next-hop"`
 }
 
 type mrtOpts struct {
@@ -60,6 +60,12 @@ type mrtOpts struct {
 }
 
 func (m *mrtConfig) newmrtOpts() mrtOpts {
+	var nexthop net.IP
+	if m.NextHop == "nil" {
+		nexthop = nil
+	} else {
+		nexthop = net.ParseIP(m.NextHop)
+	}
         return mrtOpts{
                 OutputDir:  "./",
                 FileFormat: "",
@@ -68,7 +74,7 @@ func (m *mrtConfig) newmrtOpts() mrtOpts {
                 QueueSize:  100000,
                 SkipV4:     m.SkipV4,
                 SkipV6:     m.SkipV6,
-                NextHop:    m.NextHop,
+                NextHop:    nexthop,
         }
 }
 
@@ -83,7 +89,7 @@ func main() {
         go g.Serve()
 
         var tmlconfig tmlConfig
-        _, err := toml.DecodeFile("./config.tml", &tmlconfig)
+        _, err := toml.DecodeFile("./app/config.tml", &tmlconfig)
         if err != nil {
                 log.Fatal(err)
         }
@@ -168,13 +174,13 @@ func main() {
 }
 
 func findMrt() (mrtFile string, err error) {
-        files, e := ioutil.ReadDir("./")
+        files, e := ioutil.ReadDir("./app")
         if e != nil {
                 err = e
         }
         for _, file := range files {
                 if strings.Contains(file.Name(), "rib") {
-                        mrtFile = "./" + file.Name()
+                        mrtFile = "./app/" + file.Name()
                         return
                 }
         }
