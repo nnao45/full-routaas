@@ -11,7 +11,7 @@ nnao45/full-routaas   latest              f62fc829754b        22 minutes ago    
 <none>                <none>              db963eb06590        22 minutes ago      949MB
 ```
 
-MIB file size's size is "85MB"...so, full-routaas container size is "17MB" !!
+RIB file size's size is "85MB"...so, full-routaas container size is "17MB" !!
 ```bash
 # ls -lh rib.20180418.0000
 -rw-r--r-- 1 root root 85M  4月 18 09:00 rib.20180418.0000
