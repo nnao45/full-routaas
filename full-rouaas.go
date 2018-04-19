@@ -161,7 +161,7 @@ func main() {
         go func() {
                 err := injectMrt(bgpclient, m)
                 if err != nil {
-                        log.Fatal(err)
+                        log.Fatal(fmt.Errorf("failed to add path: %s", err))
                         return
                 }
 
