@@ -1,6 +1,6 @@
 # full-routaas
 🐣Ultra minimal🐣 BGP IPv4 Unicast Full Route "as a Service" for Docker container.  
-Using [GoBGP](https://github.com/osrg/gobgp) (as Golang Library)
+Using [GoBGP](https://github.com/osrg/gobgp) (as Golang Library) & [Toml](https://github.com/BurntSushi/toml) config files.
 
 ## Ultra minimal images.
 
