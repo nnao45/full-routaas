@@ -11,7 +11,7 @@ LDFLAGS := -ldflags="-s -w -X \"main.version=$(VERSION)\" -extldflags \"-static\
 $(TARGET): $(SRCS)
 	CGO_ENABLED=0 GOOS=linux go build -a -tags netgo -installsuffix netgo $(LDFLAGS) -o $(NAME)
 
-.PHONY: mibupdate clean upde dep dep-install build run 
+.PHONY: mibupdate clean upde dep dep-install build run launch
 
 ribupdate:
 	./get-fullroute-rib.sh 
@@ -34,3 +34,6 @@ build:
 
 run:
 	docker run -it --rm --privileged -p 179:179 nnao45/full-routaas:latest
+
+launch:
+	./launch.sh
