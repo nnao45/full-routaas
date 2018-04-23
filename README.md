@@ -1,4 +1,4 @@
-[![Travis CI](https://travis-ci.org/nnao45/jgob.svg?branch=master)](https://travis-ci.org/nnao45/full-routaas)
+[![Travis CI](https://travis-ci.org/nnao45/full-routaas.svg?branch=master)](https://travis-ci.org/nnao45/full-routaas)
 [![Go Report Card](https://goreportcard.com/badge/github.com/nnao45/jgob)](https://goreportcard.com/report/github.com/nnao45/full-routaas)
 [![license](http://img.shields.io/badge/license-MIT-red.svg?style=flat)](https://raw.githubusercontent.com/nnao45/full-routaas/master/LICENSE)
 # full-routaas
