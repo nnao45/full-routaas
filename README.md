@@ -1,3 +1,6 @@
+[![Travis CI](https://travis-ci.org/nnao45/jgob.svg?branch=master)](https://travis-ci.org/nnao45/full-routaas)
+[![Go Report Card](https://goreportcard.com/badge/github.com/nnao45/jgob)](https://goreportcard.com/report/github.com/nnao45/full-routaas)
+[![license](http://img.shields.io/badge/license-MIT-red.svg?style=flat)](https://raw.githubusercontent.com/nnao45/full-routaas/master/LICENSE)
 # full-routaas
 🐣Ultra minimal🐣 BGP IPv4 Unicast Full Route "as a Service" for Docker container.  
 Using [GoBGP](https://github.com/osrg/gobgp) (as Golang Library) & [Toml](https://github.com/BurntSushi/toml) config files.
