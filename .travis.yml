@@ -1,0 +1,14 @@
+language: go
+go:
+          - 1.9
+          - master
+os:
+          - linux
+          - osx
+before_script:
+          - make ribupdate
+          - make dep-install
+          - make dep
+sudo: required
+
+script: make
