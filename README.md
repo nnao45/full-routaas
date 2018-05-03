@@ -35,6 +35,7 @@ RIB file size's size is "85MB"...so, full-routaas container size is "17MB" !!
 
 ### 2.You launch
 ```bash
+# cd full-routaas && \ 
 # make launch
 ```
 
