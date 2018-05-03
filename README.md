@@ -31,11 +31,12 @@ RIB file size's size is "85MB"...so, full-routaas container size is "17MB" !!
 ### 1.You download this repo.
 ```bash
 # git clone https://github.com/nnao45/full-routaas.git
+# cd full-routaas
 ```
 
 ### 2.You launch
 ```bash
-# cd full-routaas && make launch
+# make launch
 ```
 
 if this don't move, use node has memory is not enough or be isn't allowed in && out -bound traffic tcp:179.
