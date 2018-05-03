@@ -38,7 +38,7 @@ RIB file size's size is "85MB"...so, full-routaas container size is "17MB" !!
 # make launch
 ```
 
-if this don't move, use node has memory is not enough or be isn't allowd in && out -bound traffic tcp:179.
+if this don't move, use node has memory is not enough or be isn't allowed in && out -bound traffic tcp:179.
 
 ## Demo
 
