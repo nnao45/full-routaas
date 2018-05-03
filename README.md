@@ -35,8 +35,7 @@ RIB file size's size is "85MB"...so, full-routaas container size is "17MB" !!
 
 ### 2.You launch
 ```bash
-# cd full-routaas && \ 
-  make launch
+# cd full-routaas && make launch
 ```
 
 if this don't move, use node has memory is not enough or be isn't allowed in && out -bound traffic tcp:179.
