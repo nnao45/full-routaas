@@ -22,7 +22,7 @@ RIB file size's size is "85MB"...so, full-routaas container size is "17MB" !!
 ```
 [You can send this container with Gmail](https://support.google.com/mail/answer/6584?co=GENIE.Platform%3DDesktop&hl=en) 😂
 
-## Getting started(Only two or three step!!　😘).
+## Getting started(only two or three step😘).
 ### 0.if you use ubuntu 16.04LTS, you may install this.
 ```bash
 # apt-get install -y docker.io bzip2
