@@ -25,18 +25,18 @@ RIB file size's size is "85MB"...so, full-routaas container size is "17MB" !!
 ## Getting started(only two or three step😘).
 ### 0.if you use ubuntu 16.04LTS, you may install this.
 ```bash
-# apt-get install -y docker.io bzip2
+# sudo apt-get install -y docker.io bzip2
 ```
 
 ### 1.You download this repo.
 ```bash
-# git clone https://github.com/nnao45/full-routaas.git
+# sudo git clone https://github.com/nnao45/full-routaas.git
 # cd full-routaas
 ```
 
 ### 2.You launch
 ```bash
-# make launch
+# sudo make launch
 ```
 
 if this don't move, use node has memory is not enough or be isn't allowed in && out -bound traffic tcp:179.
