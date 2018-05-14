@@ -35,7 +35,7 @@ RIB file size's size is "85MB"...so, full-routaas container size is "17MB" !!
 ```
 
 
-### 2.You edit config.tml.
+### 2.You edit config.tml for the your environments.
 ```bash
 # sudo vi config.tml
 ```
