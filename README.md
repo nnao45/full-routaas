@@ -40,11 +40,13 @@ RIB file size's size is "85MB"...so, full-routaas container size is "17MB" !!
 # sudo vi config.tml
 ```
 
-### 3.You launch
+### 3.You build
 Make the full-routaas Docker image.
 ```bash
 # sudo make build 
 ```
+
+### 4.You run
 Run the full-routaas Docker image.
 ```bash
 # sudo make run
