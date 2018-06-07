@@ -3,4 +3,3 @@
 make ribupdate
 make build
 make clean
-make run
