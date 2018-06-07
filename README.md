@@ -42,7 +42,10 @@ RIB file size's size is "85MB"...so, full-routaas container size is "17MB" !!
 
 ### 3.You launch
 ```bash
-# sudo make launch
+# Make the full-routaas Docker image.
+# sudo make build 
+# Run the full-routaas Docker image.
+# sudo make run
 ```
 
 if this don't move, use node has memory is not enough or be isn't allowed in && out -bound traffic tcp:179.
@@ -83,7 +86,7 @@ if you run your env, change config.tml's paramater
 
 Bob Router(full-routaas mem4GB CPU1)  
 ```bash
-Bob# docker run -it --rm --privileged -p 179:179 nnao45/full-routaas:latest
+Bob# make run
 INFO[0000] Add a peer configuration for:192.168.0.2      Topic=Peer
 INFO[0000] MRT injection file is                        
 INFO[0000] Running full-routaas version 1.0.0 !!        
