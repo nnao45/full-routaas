@@ -90,7 +90,7 @@ if you run your env, change config.tml's paramater
 
 Bob Router(full-routaas mem4GB CPU1)  
 ```bash
-Bob# make run
+Bob# sudo make run
 INFO[0000] Add a peer configuration for:192.168.0.2      Topic=Peer
 INFO[0000] MRT injection file is                        
 INFO[0000] Running full-routaas version 1.0.0 !!        
